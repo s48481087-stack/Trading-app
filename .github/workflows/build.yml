@@ -1,21 +1,36 @@
-[app]
-title = Trading App
-package.name = tradingapp
-package.domain = org.test
-source.dir = .
-source.include_exts = py,png,jpg,kv,atlas,db
-version = 0.1
+name: Build Android APK
 
-requirements = python3,kivy,google-generativeai,urllib3,chardet,idna,requests,certifi
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
 
-orientation = portrait
-fullscreen = 0
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-android.permissions = INTERNET
-android.accept_sdk_license = True
-android.api = 33
-android.minapi = 24
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-[buildozer]
-log_level = 2
-warn_on_root = 1
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good openjdk-17-jdk unzip zip ccache
+          python -m pip install --upgrade pip
+          pip install buildozer cython==0.29.33
+
+      - name: Build APK with Buildozer
+        run: |
+          buildozer android debug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TradingApp-APK
+          path: bin/*.apk
