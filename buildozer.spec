@@ -6,7 +6,7 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,db
 version = 0.1
 
-requirements = python3,kivy,google-generativeai,urllib3,chardet,idna,requests,certifi
+requirements = python3,kivy==2.3.0,google-generativeai,urllib3,chardet,idna,requests,certifi
 
 orientation = portrait
 fullscreen = 0
@@ -15,6 +15,7 @@ android.permissions = INTERNET
 android.accept_sdk_license = True
 android.api = 33
 android.minapi = 24
+android.ndk = 25b
 
 [buildozer]
 log_level = 2
