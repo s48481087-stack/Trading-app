@@ -6,7 +6,7 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,db
 version = 0.1
 
-requirements = python3,kivy==2.3.0,google-generativeai,urllib3,chardet,idna,requests,certifi
+requirements = python3,kivy==2.3.0,requests,urllib3,chardet,idna,certifi
 
 orientation = portrait
 fullscreen = 0
