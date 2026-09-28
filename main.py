@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import json
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
@@ -8,7 +9,7 @@ from kivy.uix.button import Button
 from kivy.uix.scrollview import ScrollView
 from kivy.graphics import Color, Line, Rectangle
 from kivy.clock import Clock
-import google.generativeai as genai
+import requests
 
 # SQLite bazasini sozlash
 def init_db():
@@ -36,10 +37,8 @@ def get_strategy():
     conn.close()
     return row[0] if row else "No rules defined."
 
-# Gemini API integratsiyasi
+# Gemini API sozlamalari
 GEMINI_API_KEY = "AQ.Ab8RN6LuV_gCqJYIuKVL1cVza5l_MiuRizexzDrMxvX8BZjLyA"
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
 
 class ChartWidget(BoxLayout):
     def __init__(self, **kwargs):
@@ -63,11 +62,11 @@ class ChartWidget(BoxLayout):
         
         with self.canvas:
             if self.signal_type == "BUY":
-                Color(0.2, 0.8, 0.2, 1)  # Yashil grafik
+                Color(0.2, 0.8, 0.2, 1)
             elif self.signal_type == "SELL":
-                Color(0.9, 0.2, 0.2, 1)  # Qizil grafik
+                Color(0.9, 0.2, 0.2, 1)
             else:
-                Color(0.5, 0.5, 0.5, 1)  # Kulrang grafik
+                Color(0.5, 0.5, 0.5, 1)
 
             w, h = self.size
             x, y = self.pos
@@ -81,7 +80,6 @@ class TradingApp(App):
         
         main_layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
 
-        # Yuqori panel
         header = Label(
             text="[b]EUR/USD - H1[/b] | AI Copilot Terminal", 
             markup=True, 
@@ -90,11 +88,9 @@ class TradingApp(App):
         )
         main_layout.add_widget(header)
 
-        # Grafik oynasi
         self.chart = ChartWidget(size_hint_y=0.35)
         main_layout.add_widget(self.chart)
 
-        # AI javobi chiqadigan oyna
         scroll = ScrollView(size_hint_y=0.37)
         self.ai_output = Label(
             text="AI analitikga savol bering...", 
@@ -108,7 +104,6 @@ class TradingApp(App):
         scroll.add_widget(self.ai_output)
         main_layout.add_widget(scroll)
 
-        # Kiritish oynasi va tugma
         input_layout = BoxLayout(orientation='horizontal', size_hint_y=0.1, spacing=5)
         self.user_input = TextInput(
             hint_text="Bozor/pattern holatini yozing (masalan: RSI 75)...", 
@@ -139,29 +134,42 @@ class TradingApp(App):
 
     def _process_ai(self, query):
         strategy = get_strategy()
-        prompt = f"""
+        prompt_text = f"""
         Siz professional treyder yordamchisisiz.
         Foydalanuvchining bazasidagi strategiyasi: {strategy}
         Bozor holati: {query}
 
         Vaziyatni tahlil qiling va oxirida albatta XULOSA: BUY, SELL yoki HOLD deb yozing.
-        Javobni o'zbek tilida qisqa va loqin bering.
+        Javobni o'zbek tilida qisqa va loqinda bering.
         """
-        try:
-            response = model.generate_content(prompt)
-            text = response.text
-            self.ai_output.text = text
+        
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "contents": [{
+                "parts": [{"text": prompt_text}]
+            }]
+        }
 
-            if "BUY" in text.upper():
-                self.chart.signal_type = "BUY"
-            elif "SELL" in text.upper():
-                self.chart.signal_type = "SELL"
+        try:
+            res = requests.post(url, headers=headers, data=json.dumps(payload), timeout=15)
+            if res.status_code == 200:
+                data = res.json()
+                text = data['candidates'][0]['content']['parts'][0]['text']
+                self.ai_output.text = text
+
+                if "BUY" in text.upper():
+                    self.chart.signal_type = "BUY"
+                elif "SELL" in text.upper():
+                    self.chart.signal_type = "SELL"
+                else:
+                    self.chart.signal_type = "NEUTRAL"
+                
+                self.chart.draw_chart()
             else:
-                self.chart.signal_type = "NEUTRAL"
-            
-            self.chart.draw_chart()
+                self.ai_output.text = f"API Xatosi: {res.status_code}"
         except Exception as e:
-            self.ai_output.text = f"Gemini API Xatosi: {str(e)}"
+            self.ai_output.text = f"Xatolik: {str(e)}"
 
 if __name__ == "__main__":
     TradingApp().run()
